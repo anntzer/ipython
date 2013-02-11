@@ -16,6 +16,7 @@ These are all loaded by default by IPython.
 from __future__ import print_function
 
 # Stdlib imports
+from collections import OrderedDict
 import glob
 import imp
 import inspect
@@ -107,13 +108,14 @@ def get_root_modules():
     ip.db['rootmodules_cache'] maps sys.path entries to list of modules.
     """
     ip = get_ipython()
-    rootmodules_cache = ip.db.get('rootmodules_cache', {})
+    rootmodules_cache = ip.db.get('rootmodules_cache', OrderedDict())
     rootmodules = list(sys.builtin_module_names)
     start_time = time()
     store = False
     for path in sys.path:
         try:
-            modules = rootmodules_cache[path]
+            modules = rootmodules_cache.pop(path)
+            rootmodules_cache[path] = modules # should also trigger a rewrite
         except KeyError:
             modules = module_list(path)
             try:
@@ -133,6 +135,8 @@ def get_root_modules():
                 return []
         rootmodules.extend(modules)
     if store:
+        while len(rootmodules_cache) > 1000:
+            rootmodules_cache.popitem(last=False)
         ip.db['rootmodules_cache'] = rootmodules_cache
     rootmodules = list(set(rootmodules))
     return rootmodules
